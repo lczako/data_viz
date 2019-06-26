@@ -1,80 +1,62 @@
-
 function BubbleSort(data, bar_width, delay, sort_id){
     SortBase.call(this, data, bar_width, delay, sort_id);
 }
 
+BubbleSort.prototype = Object.create(SortBase.prototype);
+BubbleSort.prototype.constructor = BubbleSort;
+BubbleSort.prototype.candidate_0_color = 'red';
+BubbleSort.prototype.candidate_1_color = 'orange';
+
 
 BubbleSort.prototype.run = function () {
     var k = 0;
-    var j = this.dataset.length - 1;
-    pick(j, k);
+    var j = this.data.length - 1;
+    this.sort(j, k);
 };
 
-BubbleSort.prototype.move = function(j, k){
-    console.log("move", j, k);
-    var last_d;
-    var last_x;
-    var last_id;
-
-    var candidate_d;
-    var candidate_x;
-    var candidate_id;
-
-    recs.each(function(d) {
-        if (parseInt(d3.select(this).attr("x")) === give_x(d, j)) {
-            last_d = d;
-            last_x = parseInt(d3.select(this).attr("x"));
-            last_id = d3.select(this).attr("id");
-
-        } else if(parseInt(d3.select(this).attr("x")) === give_x(d, k)){
-            candidate_d = d;
-            candidate_x = parseInt(d3.select(this).attr("x"));
-            candidate_id = d3.select(this).attr("id");
-        }});
-
-    if (last_d < candidate_d){
-        var temp = last_x;
-        last_x = candidate_x;
-        candidate_x = temp;
+BubbleSort.prototype.driver = function(j, k) {
+    switch (true) {
+        case (k < (j - 1)): return this.sort(j, k + 1);
+        case (k === (j - 1) && j > 0): return this.sort(j - 1, 0);
+        default: return this.default_colors();
     }
-
-    recs.transition()
-        .delay(this.delay)
-        .attr("x", function(d, i) {
-            switch (d3.select(this).attr("id")) {
-                case last_id:
-                    return last_x;
-                case candidate_id:
-                    return candidate_x;
-                default:
-                    return parseInt(d3.select(this).attr("x"));
-            }
-        })
-        .on("end", function () {
-            switch (true) {
-                case (k < (j-1)): return this.pick(j, k+1);
-                case (k == j-1 && j > 0): return this.pick(j-1, 0);
-                default: return default_colors();
-            }
-        })
 };
 
-BubbleSort.prototype.pick = function(j, k) {
+BubbleSort.prototype.sort = function(j, k) {
+    var self = this;
     console.log("pick", j, k);
-    recs.transition()
-        .delay(this.delay)
-        .attr("style", function (d, i) {
-            switch (parseInt(d3.select(this).attr("x"))) {
-                case give_x(d, j):
-                    return "fill:red";
-                case give_x(d, k):
-                    return "fill:orange";
-                default:
-                    return give_color(d, i);
-            }
-        })
-        .on("end", function () {
-            move(j, k);
-        })
-};
 
+    this.recs
+        .transition()
+        .delay(self.delay)
+        .style("fill", function (d, i) {
+            console.log(d, i);
+            switch (d3.select(this).attr("x")) {
+                case give_x(j): return self.candidate_0_color;
+                case give_x(k): return self.candidate_1_color;
+                default: return give_color(d);
+            }})
+        .call(endall, function() {
+            var last = d3.select("rect[x=\"" + give_x(j) + "\"]");
+            var candidate = d3.select("rect[x=\"" + give_x(k) + "\"]");
+
+            if (last.datum() < candidate.datum()) {
+                console.log("prep for switch");
+                var last_x = give_x(j);
+                var candidate_x = give_x(k);
+
+                self.recs
+                    .transition()
+                    .delay(self.delay)
+                    .filter(function() { return [last_x, candidate_x].includes(d3.select(this).attr("x")) })
+                    .attr("x", function () {
+                        switch (d3.select(this).attr("x")) {
+                            case last_x: return candidate_x;
+                            case candidate_x: return last_x;
+                        }})
+                    .call(endall, function() { self.driver(j, k); })
+            } else {
+                console.log("no switch");
+                self.driver(j, k);
+            }})
+};
